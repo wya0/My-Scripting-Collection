@@ -1,0 +1,19 @@
+{
+  "name": "Life Progress Pro",
+  "version": "1.0.0",
+  "icon": "hourglass.bottomhalf.filled",
+  "color": "#FF2D55",
+  "description": "可视化时间流逝，内置每日一言与人生进度。",
+  "runInApp": false,
+  "intentInputTypes": [],
+  "author" : {
+    "name" : "wya0",
+    "email" : "",
+    "homepage" : "https:\/\/github.com\/wya0"
+  },
+  "remoteResource" : {
+    "hash" : "",
+    "autoUpdateInterval" : 600,
+    "url" : ""
+  }
+}
