@@ -1,33 +1,19 @@
-import { Script, Widget, VStack, HStack, ZStack, Text, ProgressView, Spacer, Image, Divider, Color, fetch } from "scripting";
-import { ProgressData, QuoteData } from "./shared/types";
-import { COLORS } from "./shared/constants";
 import { 
-  getStoredBirthday,
+  VStack, HStack, ZStack, Text, Image, Spacer, Widget, Script, ProgressView, Divider, Button
+} from "scripting";
+import { 
+  getProgressData, 
+  getStoredBirthday, 
+  getDateInfo, 
+  getDynamicContent, 
   getStoredSmallWidgetDisplay,
-  getProgressData,
   getProgressItemByKey,
-  getCachedQuoteData,
-  cacheQuoteData,
-  fetchQuoteWithTimeout as fetchQuote
+  getRefreshInterval,
+  getWidgetBgConfig,
+  getContrastColor,
+  formatPercentage
 } from "./shared/utils";
-
-const REFRESH_INTERVAL = 30 * 60; // 30分钟
-
-function getDateInfo() {
-  const now = new Date();
-  const weekDays = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
-  const startOfYear = new Date(now.getFullYear(), 0, 0);
-  const diff = now.getTime() - startOfYear.getTime();
-  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-  return {
-    shortDate: now.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' }),
-    fullDate: now.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' }),
-    weekDay: weekDays[now.getDay()],
-    fullYear: now.getFullYear(),
-    dayOfYear: dayOfYear
-  };
-}
+import { ToggleDisplayIntent, RefreshQuoteIntent } from "./app_intents";
 
 function ErrorView() {
   return (
@@ -55,39 +41,66 @@ function ErrorView() {
   );
 }
 
-async function fetchQuoteWithTimeout(retryCount: number = 3): Promise<QuoteData> {
-  return await fetchQuote(retryCount);
-}
-
-async function getQuoteDataWithNetworkFirst(): Promise<QuoteData> {
-  try {
-    const quote = await fetchQuoteWithTimeout();
-    cacheQuoteData(quote);
-    
-    return quote;
-  } catch (error) {
-    console.warn("网络请求一言数据失败，尝试使用缓存:", error);
-    try {
-      const cached = getCachedQuoteData();
-      if (cached) {
-        return cached;
-      }
-    } catch (cacheError) {
-      console.error("获取缓存一言数据失败:", cacheError);
-    }
-    return {
-      text: "时间不等人，珍惜当下。",
-      from: "Life Progress"
-    };
-  }
-}
-
 function SmallWidgetView() {
   const birthday = getStoredBirthday();
   const displayKey = getStoredSmallWidgetDisplay();
   const item = getProgressItemByKey(displayKey, birthday) || getProgressData(birthday)[3]; 
   const dateInfo = getDateInfo();
   const remaining = 100 - (item.value * 100);
+  const bgConfig = getWidgetBgConfig();
+
+  const adaptiveColor = bgConfig.useCustom 
+    ? {
+        light: getContrastColor(bgConfig.light),
+        dark: getContrastColor(bgConfig.dark)
+      }
+    : "white";
+
+  const content = (
+    <Button intent={ToggleDisplayIntent(undefined as any)} buttonStyle="plain">
+      <VStack padding={14} alignment="leading">
+        <HStack spacing={4} alignment="center">
+          <ZStack frame={{ width: 20, height: 20 }} background={{ style: "ultraThinMaterial", shape: { type: "rect", cornerRadius: 10 } }}>
+            <Image systemName={item.icon} foregroundStyle={adaptiveColor as any} font={10} />
+          </ZStack>
+          <Spacer />
+          <VStack alignment="trailing" spacing={0}>
+             <Text foregroundStyle={adaptiveColor as any} font={14} fontWeight="bold" opacity={0.95}>
+               {dateInfo.shortDate}
+             </Text>
+             <Text foregroundStyle={adaptiveColor as any} font={10} fontWeight="medium" opacity={0.8}>
+               {dateInfo.weekDay}
+             </Text>
+             <Text foregroundStyle={adaptiveColor as any} font={10} fontWeight="medium" opacity={0.8}>
+               第{dateInfo.dayOfYear}天
+             </Text>
+          </VStack>
+        </HStack>
+        <Spacer />
+        <HStack alignment="lastTextBaseline" spacing={2}>
+          <Text foregroundStyle={adaptiveColor as any} font={45} fontWeight="heavy" fontDesign="rounded">
+            {formatPercentage(item.value, 1).replace('%', '')}
+          </Text>
+          <Text foregroundStyle={adaptiveColor as any} font={16} fontWeight="bold" padding={{ bottom: 6 }} opacity={0.8}>%</Text>
+        </HStack>
+        <Text foregroundStyle={adaptiveColor as any} font={10} opacity={0.7}>
+          {item.label}剩余 {formatPercentage(remaining / 100, 1)}
+        </Text>
+        <Spacer />
+        <VStack spacing={0}>
+            <ProgressView value={item.value} tint={adaptiveColor as any} background={"ultraThinMaterial"} frame={{ height: 6 }} />
+        </VStack>
+      </VStack>
+    </Button>
+  );
+
+  if (bgConfig.useCustom) {
+    return (
+      <ZStack background={{ light: bgConfig.light, dark: bgConfig.dark } as any}>
+        {content}
+      </ZStack>
+    );
+  }
 
   return (
     <ZStack background={item.color as any}>
@@ -99,187 +112,280 @@ function SmallWidgetView() {
         }}
         opacity={0.2} 
       />
-      <VStack padding={14} alignment="leading">
-        <HStack spacing={4} alignment="center">
-          <ZStack frame={{ width: 20, height: 20 }} background={{ style: "ultraThinMaterial", shape: { type: "rect", cornerRadius: 10 } }}>
-            <Image systemName={item.icon} foregroundStyle={"white"} font={10} />
-          </ZStack>
-          <Spacer />
-          <VStack alignment="trailing" spacing={0}>
-             <Text foregroundStyle={"white"} font={11} fontWeight="bold" opacity={0.95}>
-               {dateInfo.shortDate}
-             </Text>
-             <Text foregroundStyle={"white"} font={9} fontWeight="medium" opacity={0.8}>
-               {dateInfo.weekDay}
-             </Text>
-             <Text foregroundStyle={"white"} font={9} fontWeight="medium" opacity={0.8}>
-               第{dateInfo.dayOfYear}天
-             </Text>
-          </VStack>
-        </HStack>
-        <Spacer />
-        <HStack alignment="lastTextBaseline" spacing={2}>
-          <Text foregroundStyle={"white"} font={40} fontWeight="heavy" fontDesign="rounded">
-            {(item.value * 100).toFixed(0)}
-          </Text>
-          <Text foregroundStyle={"white"} font={16} fontWeight="bold" padding={{ bottom: 6 }} opacity={0.8}>%</Text>
-        </HStack>
-        <Text foregroundStyle={"white"} font={10} opacity={0.7}>
-          {item.label}剩余 {remaining.toFixed(0)}%
-        </Text>
-        <Spacer />
-        <VStack spacing={0}>
-            <ProgressView value={item.value} tint={"white"} background={"ultraThinMaterial"} frame={{ height: 6 }} />
-        </VStack>
-      </VStack>
+      {content}
     </ZStack>
   );
 }
 
-async function MediumWidgetView() {
+function MediumWidgetView({ content }: { content: any }) {
   const data = getProgressData(getStoredBirthday());
   const dateInfo = getDateInfo();
-  const quote = await getQuoteDataWithNetworkFirst();
-  const displayItems = [data[0], data[2], data[3]]; // Day, Month, Year
+  const bgConfig = getWidgetBgConfig();
+  
+  const displayItems = [data[1], data[2],data[3], data[4]];
+
+  const background = bgConfig.useCustom 
+    ? ({ light: bgConfig.light, dark: bgConfig.dark } as any)
+    : "systemBackground";
+
+  const adaptiveLabelColor = bgConfig.useCustom 
+    ? { light: getContrastColor(bgConfig.light), dark: getContrastColor(bgConfig.dark) }
+    : "label";
+  
+  const adaptiveSecondaryColor = bgConfig.useCustom
+    ? { light: getContrastColor(bgConfig.light), dark: getContrastColor(bgConfig.dark) }
+    : "secondaryLabel";
 
   return (
-    <VStack padding={14} spacing={8} background={"systemBackground"} frame={{ maxWidth: Infinity, maxHeight: Infinity }}>
-      <HStack>
-        <Text font={14} fontWeight="bold" foregroundStyle={"red"}>
-          {dateInfo.fullDate}
-        </Text>
+    <VStack padding={12} spacing={6} background={background} frame={{ maxWidth: Infinity, maxHeight: Infinity }}>
+      <HStack padding={{ horizontal: 4 }}>
+        <Text font={15} fontWeight="bold" foregroundStyle={adaptiveLabelColor as any}>{dateInfo.fullDate}</Text>
         <Spacer />
-        <Text font={12} foregroundStyle={"secondaryLabel"}>
-          {dateInfo.weekDay} · 第{dateInfo.dayOfYear}天
-        </Text>
+        <Text font={10} fontWeight="medium" foregroundStyle={adaptiveSecondaryColor as any}>{dateInfo.weekDay} · 第{dateInfo.dayOfYear}天</Text>
       </HStack>
+      
       <Divider /> 
-      <HStack spacing={12} alignment="center" frame={{ maxHeight: Infinity }}>
-        <VStack spacing={6} frame={{ maxWidth: "infinity", maxHeight: "infinity" }}>
+
+      <HStack spacing={10} alignment="center" frame={{ maxHeight: Infinity }}>
+        <VStack spacing={4} frame={{ maxWidth: "infinity", maxHeight: "infinity" }}>
            {displayItems.map((item) => (
              <VStack key={item.key} spacing={2}>
                <HStack>
                  <Image systemName={item.icon} font={9} foregroundStyle={item.color as any} />
-                 <Text font={10} fontWeight="medium" foregroundStyle={"secondaryLabel"}>{item.label}</Text>
+                 <Text font={11} fontWeight="medium" foregroundStyle={adaptiveSecondaryColor as any}>{item.label}</Text>
                  <Spacer />
-                 <Text font={10} fontWeight="bold" fontDesign="monospaced" foregroundStyle={item.color as any}>
-                   {(item.value * 100).toFixed(0)}%
-                 </Text>
+                 <Text font={11}  fontWeight="bold" fontDesign="monospaced" foregroundStyle={adaptiveLabelColor as any}>{formatPercentage(item.value, 1)}</Text>
                </HStack>
                <ProgressView value={item.value} tint={item.color as any} />
              </VStack>
            ))}
         </VStack>
-        <VStack 
-          frame={{ maxWidth: "infinity", maxHeight: "infinity" }} 
-          padding={8}
-          alignment="center"
+
+        <Button 
+          intent={content.source !== "老黄历" ? RefreshQuoteIntent(undefined as any) : (undefined as any)} 
+          buttonStyle="plain" 
+          frame={{ maxWidth: "infinity", maxHeight: "infinity" }}
         >
-          <Spacer />
-          <Image systemName="quote.bubble" font={14} foregroundStyle={"tertiaryLabel"} padding={{ bottom: 2 }} />
-          <Text font={11} fontWeight="medium" fontDesign="serif" multilineTextAlignment="center" lineLimit={3} foregroundStyle={"label"}>
-            {quote.text}
-          </Text>
-          <Spacer />
-          <Text font={10} fontWeight="medium" fontDesign="serif" multilineTextAlignment="center" lineLimit={1} foregroundStyle={"secondaryLabel"}>
-            —— {quote.from}
-          </Text>
-        </VStack>
+          <VStack 
+            padding={{ horizontal: 4, vertical: 2 }}
+            alignment="center"
+            spacing={2}
+            frame={{ maxWidth: "infinity", maxHeight: "infinity" }}
+          >
+            <HStack spacing={4} alignment="center">
+              {content.icon && <Image systemName={content.icon} font={9} foregroundStyle={adaptiveSecondaryColor as any} opacity={0.7} />}
+              <Text font={10} fontWeight="bold" foregroundStyle={adaptiveSecondaryColor as any} opacity={0.7}>
+                {content.title}
+              </Text>
+            </HStack>
+            
+            {content.source === "老黄历" ? (
+              <VStack spacing={2} alignment="center">
+                <Text font={10} fontWeight="bold" foregroundStyle={"#ff5e62"}>忌</Text>
+                <Text 
+                  font={11} 
+                  fontWeight="medium" 
+                  fontDesign="serif" 
+                  multilineTextAlignment="center" 
+                  lineLimit={5} 
+                  minScaleFactor={0.7}
+                  foregroundStyle={adaptiveLabelColor as any}
+                >
+                  {(content.content.split('\n').find((l: string) => l.startsWith('忌：')) || content.content).replace('忌：', '')}
+                </Text>
+              </VStack>
+            ) : (
+              <Text 
+                font={11} 
+                fontWeight="medium" 
+                fontDesign="serif" 
+                multilineTextAlignment="center" 
+                lineLimit={6} 
+                minScaleFactor={0.7}
+                foregroundStyle={adaptiveLabelColor as any}
+              >
+                {content.content}
+              </Text>
+            )}
+            {content.subContent ? (
+              <Text font={9} foregroundStyle={adaptiveSecondaryColor as any} opacity={0.6} lineLimit={2} minScaleFactor={0.8} multilineTextAlignment="center">
+                {content.subContent}
+              </Text>
+            ) : null}
+
+            <HStack>
+              <Spacer />
+              <Text font={9} foregroundStyle={adaptiveSecondaryColor as any} opacity={0.6}>
+                —— {content.source}
+              </Text>
+            </HStack>
+          </VStack>
+        </Button>
 
       </HStack>
     </VStack>
   );
 }
-async function LargeWidgetView() {
+
+function LargeWidgetView({ content }: { content: any }) {
   const data = getProgressData(getStoredBirthday());
   const dateInfo = getDateInfo();
-  const quote = await getQuoteDataWithNetworkFirst();
+  const bgConfig = getWidgetBgConfig();
+  const sourceIsAlmanac = content.source === "老黄历";
+
+  const background = bgConfig.useCustom 
+    ? ({ light: bgConfig.light, dark: bgConfig.dark } as any)
+    : "systemBackground";
+
+  const adaptiveLabelColor = bgConfig.useCustom 
+    ? { light: getContrastColor(bgConfig.light), dark: getContrastColor(bgConfig.dark) }
+    : "label";
+  
+  const adaptiveSecondaryColor = bgConfig.useCustom
+    ? { light: getContrastColor(bgConfig.light), dark: getContrastColor(bgConfig.dark) }
+    : "secondaryLabel";
 
   return (
-    <VStack frame={{ maxWidth: Infinity, maxHeight: Infinity }} padding={14} spacing={6} background={"systemBackground"}>
-      <HStack padding={{ bottom: 20 }}>
-        <Text font={18} fontWeight="bold" foregroundStyle={"label"}>时光流逝</Text>
+    <VStack frame={{ maxWidth: Infinity, maxHeight: Infinity }} padding={14} spacing={6} background={background}>
+      <HStack padding={{ top: 15, bottom: 5 }}>
+        <Text font={18} fontWeight="bold" foregroundStyle={adaptiveLabelColor as any}>时光流逝</Text>
         <Spacer />
         <Image systemName="hourglass" foregroundStyle={"red"} font={16} />
       </HStack>
+
       <VStack spacing={8} frame={{ maxHeight: Infinity }}>
         {data.map((item) => (
           <HStack key={item.key} spacing={8}>
             <ZStack frame={{ width: 22, height: 22 }} background={{ style: "secondarySystemFill", shape: { type: "rect", cornerRadius: 11 } }}>
                 <Image systemName={item.icon} foregroundStyle={item.color as any} font={10} />
             </ZStack>
-            <Text font={13} fontWeight="medium" foregroundStyle={"secondaryLabel"} frame={{ width: 35 }}>{item.label}</Text>
+            <Text font={13} fontWeight="medium" foregroundStyle={adaptiveSecondaryColor as any} frame={{ width: 35 }}>{item.label}</Text>
             <ProgressView value={item.value} tint={item.color as any} />
-            <Text font={13} fontWeight="bold" fontDesign="monospaced" foregroundStyle={"label"} frame={{ width: 45 }} multilineTextAlignment="trailing">
-              {(item.value * 100).toFixed(1)}%
+            <Text font={13} fontWeight="bold" fontDesign="monospaced" foregroundStyle={adaptiveLabelColor as any} frame={{ width: 45 }} multilineTextAlignment="trailing">
+              {formatPercentage(item.value, 1)}
             </Text>
           </HStack>
         ))}
       </VStack>
-      <VStack frame={{ height: 6 }} /> 
-      
+
       <HStack 
         padding={{ vertical: 6, horizontal: 10 }} 
-        background={{ style: "secondarySystemGroupedBackground", shape: { type: "rect", cornerRadius: 8 } }}
+        background={{ style: "secondarySystemFill", shape: { type: "rect", cornerRadius: 8 } }}
       >
-        <HStack spacing={6}>
-            <Image systemName="calendar" font={12} foregroundStyle={"blue"} />
-            <Text font={13} fontWeight="bold" foregroundStyle={"label"}>{dateInfo.shortDate}</Text>
-        </HStack>
+        <HStack spacing={6}><Image systemName="calendar" font={12} foregroundStyle={"red"} /><Text font={13} fontWeight="bold" foregroundStyle={adaptiveLabelColor as any}>{dateInfo.shortDate}</Text></HStack>
         <Spacer />
-        <Text font={11} foregroundStyle={"secondaryLabel"}>
-           {dateInfo.weekDay} · 第{dateInfo.dayOfYear}天
-        </Text>
+        <Text font={11} foregroundStyle={adaptiveSecondaryColor as any}>{dateInfo.weekDay} · 第{dateInfo.dayOfYear}天</Text>
       </HStack>
-      
-      <ZStack 
-        padding={8} 
-        frame={{ maxHeight: Infinity }}
+
+      <Divider />
+      <Button 
+        intent={!sourceIsAlmanac ? RefreshQuoteIntent(undefined as any) : (undefined as any)} 
+        buttonStyle="plain"
       >
-        <VStack spacing={2} alignment="leading">
-          <Image systemName="quote.bubble" font={14} foregroundStyle={"tertiaryLabel"} padding={{ bottom: 2 }} />
-          <Text font={12} fontWeight="regular" fontDesign="serif" lineLimit={3} foregroundStyle={"label"}>
-            "{quote.text}"
-          </Text>
-          <HStack>
-            <Spacer />
-            <Text font={10} foregroundStyle={"secondaryLabel"}>—— {quote.from}</Text>
+        <VStack 
+          padding={{ vertical: 8 }} 
+          spacing={sourceIsAlmanac ? 6 : 4}
+        >
+          <HStack spacing={4} alignment="center">
+            {content.icon && <Image systemName={content.icon} font={11} foregroundStyle={adaptiveSecondaryColor as any} opacity={0.7} />}
+            <Text font={11} fontWeight="bold" foregroundStyle={adaptiveSecondaryColor as any} opacity={0.7}>
+              {content.title}
+            </Text>
           </HStack>
+          
+          {sourceIsAlmanac ? (
+            <HStack spacing={12} alignment="top">
+              <VStack spacing={2} frame={{ maxWidth: "infinity" }}>
+                <Text font={10} fontWeight="bold" foregroundStyle={"#56ab2f"}>宜</Text>
+                <Text 
+                    font={11} 
+                    fontWeight="medium" 
+                    lineLimit={4} 
+                    minScaleFactor={0.8}
+                    foregroundStyle={adaptiveLabelColor as any}
+                  >
+                    {content.content.split('\n').find((l: string) => l.startsWith('宜：'))?.replace('宜：', '') || "-"}
+                  </Text>
+                </VStack>
+                <Divider frame={{ width: 1, height: 40 }} background={"secondarySystemFill"} />
+                <VStack spacing={2} frame={{ maxWidth: "infinity" }}>
+                  <Text font={10} fontWeight="bold" foregroundStyle={"#ff5e62"}>忌</Text>
+                  <Text 
+                    font={11} 
+                    fontWeight="medium" 
+                    lineLimit={4} 
+                    minScaleFactor={0.8}
+                    foregroundStyle={adaptiveLabelColor as any}
+                  >
+                    {content.content.split('\n').find((l: string) => l.startsWith('忌：'))?.replace('忌：', '') || "-"}
+                  </Text>
+                </VStack>
+              </HStack>
+            ) : (
+              <Text 
+                font={12} 
+                fontWeight="medium" 
+                fontDesign="serif" 
+                multilineTextAlignment="center" 
+                lineLimit={5} 
+                minScaleFactor={0.7}
+                foregroundStyle={adaptiveLabelColor as any}
+              >
+                {content.content}
+              </Text>
+            )}
+            {content.subContent ? (
+              <Text font={10} foregroundStyle={adaptiveSecondaryColor as any} opacity={0.6} lineLimit={1} minScaleFactor={0.8} multilineTextAlignment="center">
+                {content.subContent}
+              </Text>
+            ) : null}
+
+            <HStack>
+              <Spacer />
+              <Text font={10} foregroundStyle={adaptiveSecondaryColor as any} opacity={0.6} lineLimit={1} minScaleFactor={0.8}>
+                —— {content.source}
+              </Text>
+            </HStack>
         </VStack>
-      </ZStack>
+      </Button>
     </VStack>
   );
 }
 
-function WidgetView() {
+function WidgetView({ content }: { content: any }) {
   const family = Widget.family;
+  
   if (family === "systemSmall") {
-    return SmallWidgetView();
+    return <SmallWidgetView />;
   } else if (family === "systemMedium") {
-    return MediumWidgetView();
+    return <MediumWidgetView content={content} />;
   } else if (family === "systemLarge") {
-    return LargeWidgetView();
-  } else {
-    return <VStack><Text>未适配</Text></VStack>;
+    return <LargeWidgetView content={content} />;
   }
+  
+  return <ErrorView />;
 }
 
-async function main() {
+async function run() {
   try {
-    const view = await WidgetView();
-    Widget.present(view, {
+    const content = await getDynamicContent();
+    
+    let refreshAfter = 3600;
+    if (Widget.family === "systemSmall") {
+      const displayKey = getStoredSmallWidgetDisplay();
+      refreshAfter = getRefreshInterval(displayKey);
+    }
+
+    Widget.present(<WidgetView content={content || { title: "每日一言", content: "时间不等人，珍惜当下。", source: "Life Progress" }} />, {
       policy: "after",
-      date: new Date(Date.now() + REFRESH_INTERVAL * 1000)
+      date: new Date(Date.now() + refreshAfter * 1000)
     });
   } catch (error) {
-    console.error("Widget主进程错误:", error);
-    Widget.present(<ErrorView />, {
-      policy: "after",
-      date: new Date(Date.now() + REFRESH_INTERVAL * 1000)
-    });
+    console.error("小组件运行崩溃:", error);
+    Widget.present(<ErrorView />);
   } finally {
     Script.exit();
   }
 }
 
-main();
+run();

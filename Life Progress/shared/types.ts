@@ -1,4 +1,3 @@
-// 进度数据接口
 export interface ProgressData {
   label: string;
   value: number;
@@ -7,47 +6,65 @@ export interface ProgressData {
   icon: string;
 }
 
-// 引言数据接口
-export interface QuoteData {
-  text: string;
-  from: string;
+export interface ContentData {
+  title: string;
+  content: string;
+  subContent?: string;
+  source: string;
+  icon?: string;
 }
 
-// 配置选项接口
+export interface ContentCache {
+  items: ContentData[];
+  currentIndex: number;
+}
+
+export interface QuoteCache extends ContentCache {}
+
+export interface HistoryCache {
+  date: string; // YYYY-MM-DD
+  items: ContentData[];
+  currentIndex: number;
+}
+
+export interface AlmanacCache {
+  date: string;
+  item: ContentData;
+}
+
+export type SourceCache = QuoteCache | HistoryCache | AlmanacCache;
+
 export interface ConfigOptions {
   lifeExpectancy: number;
   smallWidgetDisplay: string;
   birthday: Date | null;
 }
 
-// 缓存数据接口
-export interface CacheData {
-  progress: ProgressData[];
+export interface CachedItem<T> {
+  data: T;
   timestamp: number;
-  quote: QuoteData | null;
 }
 
-// 小组件显示选项接口
 export interface WidgetDisplayOption {
   label: string;
   value: string;
 }
 
-// 用户设置接口
 export interface UserSettings {
   birthday?: string;
   smallWidgetDisplay?: string;
   lifeExpectancy?: number;
+  useCustomWidgetBg?: boolean;
+  widgetBgLight?: string;
+  widgetBgDark?: string;
 }
 
-// API 响应接口（用于一言API）
-export interface QuoteApiResponse {
-  hitokoto: string;
-  from: string;
-  type: string;
+export interface WidgetBgConfig {
+  useCustom: boolean;
+  light: string;
+  dark: string;
 }
 
-// 计算结果接口
 export interface ProgressResult {
   day: number;
   week: number;
