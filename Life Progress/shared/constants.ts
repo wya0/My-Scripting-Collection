@@ -6,6 +6,7 @@ export const STORAGE_KEYS = {
   QUOTE_CACHE: "quote_cache",
   CONTENT_SOURCE: "content_source",
   WIDGET_BG_CUSTOM: "widget_bg_custom",
+  WIDGET_BG_TRANSPARENT: "widget_bg_transparent",
   WIDGET_BG_LIGHT: "widget_bg_light",
   WIDGET_BG_DARK: "widget_bg_dark"
 } as const;
