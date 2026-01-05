@@ -174,15 +174,19 @@ export function setStoredContentSource(value: string): boolean {
 
 export function getWidgetBgConfig(): WidgetBgConfig {
   const useCustom = StorageService.get<boolean>(STORAGE_KEYS.WIDGET_BG_CUSTOM) || false;
+  const isTransparent = StorageService.get<boolean>(STORAGE_KEYS.WIDGET_BG_TRANSPARENT) || false;
   const light = StorageService.get<string>(STORAGE_KEYS.WIDGET_BG_LIGHT) || DEFAULT_CONFIG.WIDGET_BG_LIGHT_DEFAULT;
   const dark = StorageService.get<string>(STORAGE_KEYS.WIDGET_BG_DARK) || DEFAULT_CONFIG.WIDGET_BG_DARK_DEFAULT;
   
-  return { useCustom, light, dark };
+  return { useCustom, isTransparent, light, dark };
 }
 
 export function setWidgetBgConfig(config: Partial<WidgetBgConfig>): void {
   if (config.useCustom !== undefined) {
     StorageService.set(STORAGE_KEYS.WIDGET_BG_CUSTOM, config.useCustom);
+  }
+  if (config.isTransparent !== undefined) {
+    StorageService.set(STORAGE_KEYS.WIDGET_BG_TRANSPARENT, config.isTransparent);
   }
   if (config.light !== undefined) {
     StorageService.set(STORAGE_KEYS.WIDGET_BG_LIGHT, config.light);
@@ -313,8 +317,10 @@ async function handleQuoteSource(cacheKey: string, forceRefresh: boolean = false
     const item = items[currentIndex % items.length];
 
     if (!forceRefresh) {
+      const updatedItems = isExpired ? [item] : items;
+      const updatedIndex = isExpired ? 0 : (currentIndex + 1) % items.length;
       StorageService.set(cacheKey, {
-        data: { items, currentIndex: (currentIndex + 1) % items.length },
+        data: { items: updatedItems, currentIndex: updatedIndex },
         timestamp: isExpired ? now : cached.timestamp // 如果过期则更新时间戳
       });
     }
