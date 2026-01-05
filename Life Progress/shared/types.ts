@@ -61,6 +61,7 @@ export interface UserSettings {
 
 export interface WidgetBgConfig {
   useCustom: boolean;
+  isTransparent: boolean;
   light: string;
   dark: string;
 }
