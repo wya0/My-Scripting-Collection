@@ -273,7 +273,15 @@ function MainView() {
                     <Toggle 
                       title=""
                       value={bgConfig.useCustom} 
-                      onChanged={(val) => setBgConfigState(prev => ({ ...prev, useCustom: val }))} 
+                      onChanged={(val) => setBgConfigState(prev => ({ ...prev, useCustom: val, isTransparent: val ? false : prev.isTransparent }))} 
+                    />
+                  </SettingRow>
+
+                  <SettingRow icon="square.dashed" title="透明背景模式">
+                    <Toggle 
+                      title=""
+                      value={bgConfig.isTransparent} 
+                      onChanged={(val) => setBgConfigState(prev => ({ ...prev, isTransparent: val, useCustom: val ? false : prev.useCustom }))} 
                     />
                   </SettingRow>
                   
