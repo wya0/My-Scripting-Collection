@@ -49,12 +49,15 @@ function SmallWidgetView() {
   const remaining = 100 - (item.value * 100);
   const bgConfig = getWidgetBgConfig();
 
-  const adaptiveColor = bgConfig.useCustom 
-    ? {
-        light: getContrastColor(bgConfig.light),
-        dark: getContrastColor(bgConfig.dark)
-      }
-    : "white";
+  let adaptiveColor: any = "white";
+  if (bgConfig.isTransparent) {
+    adaptiveColor = "label"; // 透明模式下通常使用系统标签颜色
+  } else if (bgConfig.useCustom) {
+    adaptiveColor = {
+      light: getContrastColor(bgConfig.light),
+      dark: getContrastColor(bgConfig.dark)
+    };
+  }
 
   const content = (
     <Button intent={ToggleDisplayIntent(undefined as any)} buttonStyle="plain">
@@ -94,6 +97,17 @@ function SmallWidgetView() {
     </Button>
   );
 
+  if (bgConfig.isTransparent) {
+    return (
+      <ZStack 
+        background="clear" 
+        {...({ containerBackground: "clear" } as any)}
+      >
+        {content}
+      </ZStack>
+    );
+  }
+
   if (bgConfig.useCustom) {
     return (
       <ZStack background={{ light: bgConfig.light, dark: bgConfig.dark } as any}>
@@ -124,20 +138,32 @@ function MediumWidgetView({ content }: { content: any }) {
   
   const displayItems = [data[1], data[2],data[3], data[4]];
 
-  const background = bgConfig.useCustom 
-    ? ({ light: bgConfig.light, dark: bgConfig.dark } as any)
-    : "systemBackground";
+  let background: any = "systemBackground";
+  if (bgConfig.isTransparent) {
+    background = "clear"; // 强制透明背景
+  } else if (bgConfig.useCustom) {
+    background = { light: bgConfig.light, dark: bgConfig.dark };
+  }
 
-  const adaptiveLabelColor = bgConfig.useCustom 
-    ? { light: getContrastColor(bgConfig.light), dark: getContrastColor(bgConfig.dark) }
-    : "label";
-  
-  const adaptiveSecondaryColor = bgConfig.useCustom
-    ? { light: getContrastColor(bgConfig.light), dark: getContrastColor(bgConfig.dark) }
-    : "secondaryLabel";
+  let adaptiveLabelColor: any = "label";
+  let adaptiveSecondaryColor: any = "secondaryLabel";
+
+  if (bgConfig.isTransparent) {
+    adaptiveLabelColor = "label";
+    adaptiveSecondaryColor = "secondaryLabel";
+  } else if (bgConfig.useCustom) {
+    adaptiveLabelColor = { light: getContrastColor(bgConfig.light), dark: getContrastColor(bgConfig.dark) };
+    adaptiveSecondaryColor = { light: getContrastColor(bgConfig.light), dark: getContrastColor(bgConfig.dark) };
+  }
 
   return (
-    <VStack padding={12} spacing={6} background={background} frame={{ maxWidth: Infinity, maxHeight: Infinity }}>
+    <VStack 
+      padding={12} 
+      spacing={6} 
+      background={background} 
+      {...(bgConfig.isTransparent ? { containerBackground: "clear" } : {}) as any}
+      frame={{ maxWidth: Infinity, maxHeight: Infinity }}
+    >
       <HStack padding={{ horizontal: 4 }}>
         <Text font={15} fontWeight="bold" foregroundStyle={adaptiveLabelColor as any}>{dateInfo.fullDate}</Text>
         <Spacer />
@@ -233,20 +259,33 @@ function LargeWidgetView({ content }: { content: any }) {
   const bgConfig = getWidgetBgConfig();
   const sourceIsAlmanac = content.source === "老黄历";
 
-  const background = bgConfig.useCustom 
-    ? ({ light: bgConfig.light, dark: bgConfig.dark } as any)
-    : "systemBackground";
+  let background: any = "systemBackground";
+  if (bgConfig.isTransparent) {
+    background = "clear"; // 强制透明背景
+  } else if (bgConfig.useCustom) {
+    background = { light: bgConfig.light, dark: bgConfig.dark };
+  }
 
-  const adaptiveLabelColor = bgConfig.useCustom 
-    ? { light: getContrastColor(bgConfig.light), dark: getContrastColor(bgConfig.dark) }
-    : "label";
-  
-  const adaptiveSecondaryColor = bgConfig.useCustom
-    ? { light: getContrastColor(bgConfig.light), dark: getContrastColor(bgConfig.dark) }
-    : "secondaryLabel";
+  // 动态文字颜色逻辑
+  let adaptiveLabelColor: any = "label";
+  let adaptiveSecondaryColor: any = "secondaryLabel";
+
+  if (bgConfig.isTransparent) {
+    adaptiveLabelColor = "label";
+    adaptiveSecondaryColor = "secondaryLabel";
+  } else if (bgConfig.useCustom) {
+    adaptiveLabelColor = { light: getContrastColor(bgConfig.light), dark: getContrastColor(bgConfig.dark) };
+    adaptiveSecondaryColor = { light: getContrastColor(bgConfig.light), dark: getContrastColor(bgConfig.dark) };
+  }
 
   return (
-    <VStack frame={{ maxWidth: Infinity, maxHeight: Infinity }} padding={14} spacing={6} background={background}>
+    <VStack 
+      frame={{ maxWidth: Infinity, maxHeight: Infinity }} 
+      padding={14} 
+      spacing={6} 
+      background={background}
+      {...(bgConfig.isTransparent ? { containerBackground: "clear" } : {}) as any}
+    >
       <HStack padding={{ top: 15, bottom: 5 }}>
         <Text font={18} fontWeight="bold" foregroundStyle={adaptiveLabelColor as any}>时光流逝</Text>
         <Spacer />
