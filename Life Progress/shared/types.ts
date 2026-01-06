@@ -14,20 +14,16 @@ export interface ContentData {
   icon?: string;
 }
 
-export interface ContentCache {
+export interface QuoteCache {
   items: ContentData[];
-  currentIndex: number;
-}
-
-export interface QuoteCache extends ContentCache {
   lastFetchTime?: number;
   displayOffset?: number;
 }
 
 export interface HistoryCache {
-  date: string; // YYYY-MM-DD
+  date: string;
   items: ContentData[];
-  currentIndex: number;
+  displayOffset?: number;
 }
 
 export interface AlmanacCache {
