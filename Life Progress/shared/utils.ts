@@ -255,24 +255,32 @@ async function handleHistorySource(cacheKey: string, today: string, forceRefresh
   const cached = StorageService.get<CachedItem<HistoryCache>>(cacheKey);
 
   if (cached && cached.data && cached.data.date === today && Array.isArray(cached.data.items) && cached.data.items.length > 0) {
-    const { items, currentIndex } = cached.data;
-    const item = items[currentIndex % items.length];
+    const { items, displayOffset = 0 } = cached.data;
+    const dayDuration = 86400000;
     
-    if (!forceRefresh) {
+    if (forceRefresh) {
+      const nextOffset = (displayOffset + 1) % items.length;
       StorageService.set(cacheKey, {
-        data: { ...cached.data, currentIndex: (currentIndex + 1) % items.length },
+        data: { ...cached.data, displayOffset: nextOffset },
         timestamp: cached.timestamp
       });
+      const idx = getTimeBasedIndex(cached.timestamp, items.length, nextOffset, dayDuration);
+      return items[idx];
     }
     
-    return item;
+    const safeIndex = getTimeBasedIndex(cached.timestamp, items.length, displayOffset, dayDuration);
+    return items[safeIndex];
   }
 
   try {
     const items = await fetchHistoryList();
     if (items.length === 0) throw new Error("无历史数据");
 
-    const cacheData: HistoryCache = { date: today, items, currentIndex: 1 % items.length };
+    const cacheData: HistoryCache = { 
+      date: today, 
+      items, 
+      displayOffset: 0 
+    };
     StorageService.set(cacheKey, { data: cacheData, timestamp: Date.now() });
     return items[0];
   } catch (error) {
@@ -284,12 +292,22 @@ async function handleHistorySource(cacheKey: string, today: string, forceRefresh
   }
 }
 
+function getTimeBasedIndex(timestamp: number, poolSize: number, offset: number = 0, totalDuration: number = API.CACHE_DURATION): number {
+  if (poolSize <= 0) return 0;
+  const now = Date.now();
+  const stepDuration = totalDuration / poolSize;
+  const elapsed = Math.max(0, now - timestamp);
+  const steps = Math.floor(elapsed / stepDuration);
+  return (steps + offset) % poolSize;
+}
+
 async function handleQuoteSource(cacheKey: string, forceRefresh: boolean = false): Promise<ContentData> {
   const cached = StorageService.get<CachedItem<QuoteCache>>(cacheKey);
   const now = Date.now();
 
   if (forceRefresh && cached && cached.data) {
-    const isThrottled = now - cached.timestamp < API.REFRESH_THROTTLE;
+    const lastFetchTime = cached.data.lastFetchTime || 0;
+    const isThrottled = now - lastFetchTime < API.REFRESH_THROTTLE;
     
     if (!isThrottled) {
       try {
@@ -297,31 +315,54 @@ async function handleQuoteSource(cacheKey: string, forceRefresh: boolean = false
         const { items } = cached.data;
         
         if (!items.some(it => it.content === newItem.content)) {
-          const updatedItems = [newItem, ...items].slice(0, API.POOL_SIZE);
+          const updatedItems = [...items, newItem].slice(-API.POOL_SIZE);
+          
+          const stepDuration = API.CACHE_DURATION / API.POOL_SIZE;
+          const currentSteps = Math.floor((now - cached.timestamp) / stepDuration);
+          const newOffset = (updatedItems.length - 1 - currentSteps) % updatedItems.length;
+          const correctedOffset = (newOffset + updatedItems.length) % updatedItems.length;
+
           StorageService.set(cacheKey, {
-            data: { items: updatedItems, currentIndex: 0 }, // 设置为 0，让随后的小组件重载显示此项并切到 1
-            timestamp: now
+            data: { 
+              items: updatedItems, 
+              displayOffset: correctedOffset,
+              lastFetchTime: now
+            },
+            timestamp: cached.timestamp
           });
-          fillContentPool(CONTENT_SOURCES.QUOTE).catch(() => {});
           return newItem;
         }
       } catch (err) {
         console.error("[handleQuoteSource] 强制刷新失败，回退至常规逻辑:", err);
       }
+    } else {
+      const { items, displayOffset = 0 } = cached.data;
+      const updatedOffset = (displayOffset + 1) % items.length;
+      
+      StorageService.set(cacheKey, {
+        data: { ...cached.data, displayOffset: updatedOffset },
+        timestamp: cached.timestamp
+      });
+      const idx = getTimeBasedIndex(cached.timestamp, items.length, updatedOffset);
+      return items[idx];
     }
   }
 
   if (cached && cached.data && Array.isArray(cached.data.items) && cached.data.items.length > 0) {
-    const { items, currentIndex } = cached.data;
+    const { items, displayOffset = 0 } = cached.data;
     const isExpired = now - cached.timestamp > API.CACHE_DURATION;
-    const item = items[currentIndex % items.length];
+    
+    const safeIndex = getTimeBasedIndex(cached.timestamp, items.length, displayOffset);
+    const item = items[safeIndex];
 
-    if (!forceRefresh) {
-      const updatedItems = isExpired ? [item] : items;
-      const updatedIndex = isExpired ? 0 : (currentIndex + 1) % items.length;
+    if (isExpired && !forceRefresh) {
       StorageService.set(cacheKey, {
-        data: { items: updatedItems, currentIndex: updatedIndex },
-        timestamp: isExpired ? now : cached.timestamp // 如果过期则更新时间戳
+        data: { 
+          items: [item], 
+          displayOffset: 0,
+          lastFetchTime: now 
+        },
+        timestamp: now
       });
     }
 
@@ -334,7 +375,11 @@ async function handleQuoteSource(cacheKey: string, forceRefresh: boolean = false
 
   try {
     const firstItem = await fetchContentFromSource(CONTENT_SOURCES.QUOTE);
-    const initialPool: QuoteCache = { items: [firstItem], currentIndex: 0 };
+    const initialPool: QuoteCache = { 
+      items: [firstItem], 
+      displayOffset: 0,
+      lastFetchTime: now 
+    };
     StorageService.set(cacheKey, { data: initialPool, timestamp: now });
     fillContentPool(CONTENT_SOURCES.QUOTE).catch(() => {});
     return firstItem;
@@ -388,7 +433,6 @@ function getTodayDateStr(): string {
 }
 
 async function fillContentPool(source: string): Promise<void> {
-  // 1. 检查锁，防止并发补全
   if (fillingSources.has(source)) return;
   fillingSources.add(source);
 
@@ -399,16 +443,19 @@ async function fillContentPool(source: string): Promise<void> {
       const cached = StorageService.get<CachedItem<QuoteCache>>(cacheKey);
       if (!cached || !cached.data) break;
       
-      const { items, currentIndex } = cached.data;
+      const { items } = cached.data;
       if (items.length >= API.POOL_SIZE) break;
 
       try {
         const newItem = await fetchContentFromSource(source);
         if (!items.some(it => it.content === newItem.content)) {
-          const updatedItems = [...items, newItem];
+          const updatedItems = [...items, newItem].slice(-API.POOL_SIZE);
           StorageService.set(cacheKey, {
-            data: { items: updatedItems, currentIndex },
-            timestamp: Date.now() 
+            data: { 
+              ...cached.data,
+              items: updatedItems
+            },
+            timestamp: Date.now()
           });
         }
         
