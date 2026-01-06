@@ -19,7 +19,10 @@ export interface ContentCache {
   currentIndex: number;
 }
 
-export interface QuoteCache extends ContentCache {}
+export interface QuoteCache extends ContentCache {
+  lastFetchTime?: number;
+  displayOffset?: number;
+}
 
 export interface HistoryCache {
   date: string; // YYYY-MM-DD
