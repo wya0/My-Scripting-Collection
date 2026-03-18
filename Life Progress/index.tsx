@@ -96,7 +96,8 @@ function DynamicContentCard({ source }: { source: string }) {
             spacing={6}
             padding={{ horizontal: 12, vertical: 6 }} 
             onTapGesture={() => refreshContent(true)}
-            background={{ style: "white", opacity: 0.9, shape: { type: "rect", cornerRadius: 100 } }}
+            clipShape={{ type: "rect", cornerRadius: 100 }}
+            background={{ color: "white", opacity: 0.9 }}
           >
             <Image systemName="arrow.clockwise" foregroundStyle={getGradient()[1] as any} font={12} fontWeight="bold" />
             <Text foregroundStyle={getGradient()[1] as any} font={12} fontWeight="bold">刷新</Text></HStack>
