@@ -60,7 +60,7 @@ export class LiveActivityManager {
         lastColor: visual.color
       };
 
-      const staleDate = Date.now() + (config.liveActivityStaleHours * 60 * 60 * 1000);
+      const staleDate = last.timestamp + (config.liveActivityStaleHours * 60 * 60 * 1000);
 
       if (activity) {
         await activity.update(state, {
