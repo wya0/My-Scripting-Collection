@@ -459,7 +459,7 @@ async function fillContentPool(source: string): Promise<void> {
           });
         }
         
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise<void>(resolve => setTimeout(resolve, 500));
       } catch (err) {
         console.error(`[fillContentPool] 获取内容失败:`, err);
         break;
@@ -510,7 +510,7 @@ async function fetchContentFromSource(source: string, retryCount: number = API.R
       throw new Error("API 响应格式错误");
     } catch (err) {
       if (attempt < retryCount) {
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
+        await new Promise<void>(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000));
         return attemptRequest(attempt + 1);
       }
       throw err;
