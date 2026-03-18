@@ -5,5 +5,10 @@
   "color": "#FF2D55",
   "description": "可视化时间流逝，内置每日一言与人生进度。",
   "runInApp": false,
-  "intentInputTypes": []
+  "intentInputTypes": [],
+  "author": {
+    "name": "wya0",
+    "email": "null",
+    "homepage": "https://github.com/wya0/My-Scripting-Collection"
+  }
 }
