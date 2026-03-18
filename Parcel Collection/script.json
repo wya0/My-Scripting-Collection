@@ -1,0 +1,14 @@
+{
+  "name": "Parcel Collection",
+  "version": "1.0.0",
+  "description": "智能快递取件码集合，支持短信自动提取和小组件交互。",
+  "icon": "shippingbox.fill",
+  "color": "systemOrange",
+  "runInApp": false,
+  "intentInputTypes": ["text"],
+  "author": {
+    "name": "wya0",
+    "email": "null",
+    "homepage": "https://github.com/wya0/My-Scripting-Collection"
+  }
+}
